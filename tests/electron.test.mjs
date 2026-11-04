@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import electronPath from 'electron';
 import { join } from 'node:path';
 import { after, before, describe, test } from 'node:test';
 import { PDFDocument } from 'pdf-lib';
@@ -12,12 +13,12 @@ function findElectron() {
   const libs = existsSync('/usr/lib') ? readdirSync('/usr/lib').filter((d) => /^electron\d*$/.test(d)).sort().reverse() : [];
   const bin = libs.map((d) => `/usr/lib/${d}/electron`).find((p) => existsSync(p));
   if (bin) return bin;
-  return join(ROOT, 'node_modules/.bin/electron');
+  return electronPath;
 }
 
 const has = (cmd) => {
   try {
-    execFileSync('which', [cmd], { stdio: 'ignore' });
+    execFileSync(process.platform === 'win32' ? 'where.exe' : 'which', [cmd], { stdio: 'ignore' });
     return true;
   } catch {
     return false;
@@ -153,7 +154,7 @@ describe('desktop app', () => {
   test('split into files', async () => {
     await resetToFirstTab();
     const out = join(dir, 'split');
-    execFileSync('mkdir', ['-p', out]);
+    mkdirSync(out, { recursive: true });
     await command('split');
     await nextDialog('showOpenDialog', out);
     const mark5 = await toastMark();

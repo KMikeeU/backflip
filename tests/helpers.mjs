@@ -1,14 +1,20 @@
 import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { PDFDocument, StandardFonts } from 'pdf-lib';
 
-export const ROOT = new URL('..', import.meta.url).pathname;
+export const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 
 export function findChrome() {
   if (process.env.CHROME_PATH) return process.env.CHROME_PATH;
   const candidates = ['/usr/bin/chromium', '/usr/bin/google-chrome-stable', '/usr/bin/google-chrome', '/usr/bin/chromium-browser'];
+  if (process.platform === 'win32') {
+    for (const base of [process.env.PROGRAMFILES, process.env['PROGRAMFILES(X86)'], process.env.LOCALAPPDATA].filter(Boolean)) {
+      candidates.push(join(base, 'Google/Chrome/Application/chrome.exe'), join(base, 'Microsoft/Edge/Application/msedge.exe'));
+    }
+  }
   const pw = join(process.env.HOME ?? '', '.cache/ms-playwright');
   if (existsSync(pw))
     for (const d of readdirSync(pw).filter((x) => x.startsWith('chromium-')).sort().reverse()) candidates.push(join(pw, d, 'chrome-linux/chrome'), join(pw, d, 'chrome-linux64/chrome'));
@@ -36,7 +42,7 @@ export async function makeSample(path, pages = 3) {
 }
 
 export async function startPreview(port) {
-  const srv = spawn('npx', ['vite', 'preview', '--port', String(port), '--strictPort'], { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
+  const srv = spawn(process.execPath, [join(ROOT, 'node_modules/vite/bin/vite.js'), 'preview', '--port', String(port), '--strictPort'], { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
   await new Promise((resolve, reject) => {
     const t = setTimeout(() => reject(new Error('preview server did not start')), 20000);
     srv.stdout.on('data', (d) => d.toString().includes(String(port)) && (clearTimeout(t), resolve()));
@@ -47,7 +53,7 @@ export async function startPreview(port) {
 export async function pdfText(path) {
   const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
   const { readFileSync } = await import('node:fs');
-  const doc = await pdfjs.getDocument({ data: new Uint8Array(readFileSync(path)), useSystemFonts: false, isEvalSupported: false, standardFontDataUrl: `${ROOT}node_modules/pdfjs-dist/standard_fonts/`, verbosity: 0 }).promise;
+  const doc = await pdfjs.getDocument({ data: new Uint8Array(readFileSync(path)), useSystemFonts: false, isEvalSupported: false, standardFontDataUrl: `${join(ROOT, 'node_modules/pdfjs-dist/standard_fonts')}/`, verbosity: 0 }).promise;
   const out = [];
   for (let i = 1; i <= doc.numPages; i++) {
     const tc = await (await doc.getPage(i)).getTextContent();

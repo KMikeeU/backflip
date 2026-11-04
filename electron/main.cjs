@@ -232,19 +232,26 @@ async function readDoc(p) {
 }
 
 function which(cmd) {
-  return (process.env.PATH || '/usr/bin').split(':').some((d) => {
-    try {
-      fs.accessSync(path.join(d, cmd), fs.constants.X_OK);
-      return true;
-    } catch {
-      return false;
+  const names = process.platform === 'win32'
+    ? [cmd, ...(process.env.PATHEXT || '.EXE;.CMD;.BAT').split(';').filter(Boolean).map((ext) => cmd + ext.toLowerCase())]
+    : [cmd];
+  for (const dir of (process.env.PATH || '').split(path.delimiter)) {
+    for (const name of names) {
+      const candidate = path.join(dir.replace(/^"|"$/g, ''), name);
+      try {
+        fs.accessSync(candidate, fs.constants.X_OK);
+        if (fs.statSync(candidate).isFile()) return candidate;
+      } catch {}
     }
-  });
+  }
+  return null;
 }
 
 function run(cmd, args, okCodes = [0]) {
   return new Promise((resolve, reject) => {
-    const p = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    const executable = cmd === 'gs' ? which('gs') || which('gswin64c') || which('gswin32c') : which(cmd);
+    if (!executable) return reject(new Error(`${cmd} is not installed or is not on PATH`));
+    const p = spawn(executable, args, { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
     const out = [];
     let err = '';
     p.stdout.on('data', (d) => out.push(d));
@@ -322,6 +329,7 @@ function registerIpc() {
   });
   ipcMain.handle('read-system-font', async () => {
     const candidates = [
+      ...(process.platform === 'win32' ? [path.join(process.env.WINDIR || 'C:\\Windows', 'Fonts', 'arial.ttf')] : []),
       '/usr/share/fonts/noto/NotoSans-Regular.ttf',
       '/usr/share/fonts/TTF/DejaVuSans.ttf',
       '/usr/share/fonts/liberation/LiberationSans-Regular.ttf',
@@ -337,7 +345,7 @@ function registerIpc() {
     return null;
   });
   ipcMain.handle('user-name', () => realName());
-  ipcMain.handle('tools', () => ({ qpdf: which('qpdf'), gs: which('gs'), tesseract: which('tesseract') }));
+  ipcMain.handle('tools', () => ({ qpdf: !!which('qpdf'), gs: !!(which('gs') || which('gswin64c') || which('gswin32c')), tesseract: !!which('tesseract') }));
   ipcMain.handle('qpdf', (_e, args, data) =>
     // qpdf exits with 3 when it succeeded with warnings.
     withTemp(data, '.pdf', async (input, output) => void (await run('qpdf', [...args, input, output], [0, 3]))),

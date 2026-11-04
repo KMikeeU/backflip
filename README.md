@@ -1,6 +1,6 @@
 # PDF Editor
 
-Desktop PDF viewer and editor for Arch Linux. Runs on the system `electron`; pdf.js renders, pdf-lib writes.
+Desktop PDF viewer and editor for Windows and Arch Linux. Uses a local Electron runtime for development; pdf.js renders, pdf-lib writes.
 
 ## Features
 
@@ -12,6 +12,26 @@ Desktop PDF viewer and editor for Arch Linux. Runs on the system `electron`; pdf
 - **Security**: open/save password-protected PDFs (AES-256), certificate signatures (PKCS#12, including creating a self-signed ID) and signature verification.
 - **OCR**: makes scanned pages searchable via Tesseract.
 - **Reduce file size** via qpdf (lossless) or Ghostscript (image downsampling).
+
+## Run on Windows
+
+Install Node.js 22.12+ (Node.js 24 recommended), then run in PowerShell:
+
+```powershell
+npm install
+npm start
+```
+
+`npm start` builds and opens the desktop app. After the first successful launch,
+double-click `Start PDF Editor.cmd` to open the existing build without a terminal
+staying open. Run `npm start` again after changing the source.
+
+For development with live updates, use `npm run app`.
+
+Optional tools must be on PATH: `qpdf.exe` for password protection and lossless
+compression, `gswin64c.exe` (Ghostscript) for image downsampling, and `tesseract.exe`
+with language data for OCR. Restart the app after installing these tools.
+The other editing features and certificate signing work without them.
 
 ## Install (Arch)
 
