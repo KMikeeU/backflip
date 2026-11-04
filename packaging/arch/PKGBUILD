@@ -1,0 +1,56 @@
+# Local PKGBUILD: builds from the surrounding source tree (run `makepkg -si` in this directory).
+pkgname=pdf-editor
+pkgver=2.0.0
+pkgrel=1
+pkgdesc='PDF viewer and editor: annotate, fill and create forms, sign, redact, OCR and rearrange pages'
+arch=('any')
+url='https://github.com/CHANGE-ME/pdf-editor'
+license=('MIT')
+_electron=electron
+depends=("${_electron}" 'hicolor-icon-theme')
+makedepends=('nodejs' 'npm' 'rsync')
+optdepends=('qpdf: open and save password-protected PDFs, lossless compression'
+            'ghostscript: reduce file size by downsampling images'
+            'tesseract: text recognition (OCR) for scanned pages'
+            'tesseract-data-eng: English OCR language data'
+            'noto-fonts: Unicode text in added annotations'
+            'ttf-dejavu: Unicode text in added annotations (fallback)')
+source=('pdf-editor.sh' 'pdf-editor.desktop')
+sha256sums=('SKIP' 'SKIP')
+
+_root="$(realpath "${startdir}/../..")"
+
+prepare() {
+  rsync -a --delete \
+    --exclude node_modules --exclude dist --exclude packaging --exclude public/pdfjs --exclude .git --exclude tests \
+    "${_root}/" "${srcdir}/${pkgname}/"
+}
+
+build() {
+  cd "${srcdir}/${pkgname}"
+  npm ci --no-audit --no-fund --cache "${srcdir}/npm-cache"
+  npm run build
+  # Only the main process's runtime dependencies (signing) ship in the package.
+  rm -rf node_modules
+  npm ci --omit=dev --ignore-scripts --no-audit --no-fund --cache "${srcdir}/npm-cache"
+  # The main process loads pdf-lib through CommonJS; drop its duplicate ESM/UMD builds and typings.
+  rm -rf node_modules/pdf-lib/{dist,es,ts3.4,src}
+  find node_modules \( -name '*.map' -o -name '*.d.ts' -o -name '*.md' \) -type f -delete
+}
+
+package() {
+  cd "${srcdir}/${pkgname}"
+  local app="${pkgdir}/usr/lib/${pkgname}"
+  install -d "${app}/electron"
+  cp -r dist node_modules "${app}/"
+  install -m644 electron/main.cjs electron/preload.cjs electron/signing.cjs electron/icon.png "${app}/electron/"
+  cat > "${app}/package.json" <<JSON
+{ "name": "${pkgname}", "productName": "PDF Editor", "version": "${pkgver}", "main": "electron/main.cjs" }
+JSON
+
+  sed "s|@ELECTRON@|${_electron}|" "${srcdir}/pdf-editor.sh" | install -Dm755 /dev/stdin "${pkgdir}/usr/bin/${pkgname}"
+  install -Dm644 "${srcdir}/pdf-editor.desktop" "${pkgdir}/usr/share/applications/${pkgname}.desktop"
+  install -Dm644 public/icon.svg "${pkgdir}/usr/share/icons/hicolor/scalable/apps/${pkgname}.svg"
+  install -Dm644 electron/icon.png "${pkgdir}/usr/share/icons/hicolor/256x256/apps/${pkgname}.png"
+  install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+}

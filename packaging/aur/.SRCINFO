@@ -1,0 +1,27 @@
+pkgbase = pdf-editor-git
+	pkgdesc = PDF viewer and editor: annotate, fill and create forms, sign, redact, OCR and rearrange pages
+	pkgver = r1.0000000
+	pkgrel = 1
+	url = https://github.com/CHANGE-ME/pdf-editor
+	arch = any
+	license = MIT
+	makedepends = git
+	makedepends = nodejs
+	makedepends = npm
+	depends = electron
+	depends = hicolor-icon-theme
+	optdepends = qpdf: open and save password-protected PDFs, lossless compression
+	optdepends = ghostscript: reduce file size by downsampling images
+	optdepends = tesseract: text recognition (OCR) for scanned pages
+	optdepends = tesseract-data-eng: English OCR language data
+	optdepends = noto-fonts: Unicode text in added annotations
+	provides = pdf-editor
+	conflicts = pdf-editor
+	source = pdf-editor::git+https://github.com/CHANGE-ME/pdf-editor.git
+	source = pdf-editor.sh
+	source = pdf-editor.desktop
+	sha256sums = SKIP
+	sha256sums = SKIP
+	sha256sums = SKIP
+
+pkgname = pdf-editor-git

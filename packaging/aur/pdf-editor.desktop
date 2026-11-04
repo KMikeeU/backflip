@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=PDF Editor
+GenericName=PDF Viewer and Editor
+Comment=View, annotate, fill, sign and rearrange PDF documents
+Exec=pdf-editor %F
+Icon=pdf-editor
+Terminal=false
+Categories=Office;Viewer;Graphics;
+MimeType=application/pdf;
+Keywords=pdf;acrobat;annotate;sign;form;merge;
+StartupNotify=true

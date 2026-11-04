@@ -1,0 +1,56 @@
+# Maintainer: CHANGE ME <you@example.com>
+pkgname=pdf-editor-git
+_pkgname=pdf-editor
+pkgver=r1.0000000
+pkgrel=1
+pkgdesc='PDF viewer and editor: annotate, fill and create forms, sign, redact, OCR and rearrange pages'
+arch=('any')
+url='https://github.com/CHANGE-ME/pdf-editor'
+license=('MIT')
+_electron=electron
+depends=("${_electron}" 'hicolor-icon-theme')
+makedepends=('git' 'nodejs' 'npm')
+optdepends=('qpdf: open and save password-protected PDFs, lossless compression'
+            'ghostscript: reduce file size by downsampling images'
+            'tesseract: text recognition (OCR) for scanned pages'
+            'tesseract-data-eng: English OCR language data'
+            'noto-fonts: Unicode text in added annotations')
+provides=("${_pkgname}")
+conflicts=("${_pkgname}")
+source=("${_pkgname}::git+${url}.git"
+        'pdf-editor.sh'
+        'pdf-editor.desktop')
+sha256sums=('SKIP'
+            'SKIP'
+            'SKIP')
+
+pkgver() {
+  cd "${_pkgname}"
+  printf 'r%s.%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
+}
+
+build() {
+  cd "${_pkgname}"
+  npm ci --no-audit --no-fund --cache "${srcdir}/npm-cache"
+  npm run build
+  rm -rf node_modules
+  npm ci --omit=dev --ignore-scripts --no-audit --no-fund --cache "${srcdir}/npm-cache"
+  # The main process loads pdf-lib through CommonJS; drop its duplicate ESM/UMD builds and typings.
+  rm -rf node_modules/pdf-lib/{dist,es,ts3.4,src}
+  find node_modules \( -name '*.map' -o -name '*.d.ts' -o -name '*.md' \) -type f -delete
+}
+
+package() {
+  cd "${_pkgname}"
+  local app="${pkgdir}/usr/lib/${_pkgname}"
+  install -d "${app}/electron"
+  cp -r dist node_modules "${app}/"
+  install -m644 electron/main.cjs electron/preload.cjs electron/signing.cjs electron/icon.png "${app}/electron/"
+  printf '{ "name": "%s", "productName": "PDF Editor", "version": "%s", "main": "electron/main.cjs" }\n' "${_pkgname}" "${pkgver}" > "${app}/package.json"
+
+  sed "s|@ELECTRON@|${_electron}|" "${srcdir}/pdf-editor.sh" | install -Dm755 /dev/stdin "${pkgdir}/usr/bin/${_pkgname}"
+  install -Dm644 "${srcdir}/pdf-editor.desktop" "${pkgdir}/usr/share/applications/${_pkgname}.desktop"
+  install -Dm644 public/icon.svg "${pkgdir}/usr/share/icons/hicolor/scalable/apps/${_pkgname}.svg"
+  install -Dm644 electron/icon.png "${pkgdir}/usr/share/icons/hicolor/256x256/apps/${_pkgname}.png"
+  install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/${_pkgname}/LICENSE"
+}
